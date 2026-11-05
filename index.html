@@ -51,6 +51,11 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #d4a373;
         }
+        @media print {
+            body { background: white !important; color: black !important; }
+            header, nav, button, .no-print { display: none !important; }
+            .print-container { display: block !important; width: 100% !important; }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -79,13 +84,19 @@
                     </button>
                 </div>
 
-                <div class="relative flex-1 sm:w-56">
+                <div class="relative flex-1 sm:w-48">
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-cozy-400">
                         <i class="fa-solid fa-search text-sm"></i>
                     </span>
-                    <input type="text" id="searchInput" oninput="filterTasks()" placeholder="Search tasks or bugs..." 
+                    <input type="text" id="searchInput" oninput="filterTasks()" placeholder="Search tasks..." 
                         class="w-full pl-9 pr-4 py-2 bg-cozy-50 border border-cozy-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cozy-400 text-cozy-900 placeholder-cozy-400">
                 </div>
+
+                <!-- Export Report Button -->
+                <button onclick="exportPDFReport()" title="Export Report for PO" class="bg-amber-100 hover:bg-amber-200 text-amber-900 px-3 py-2 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5 border border-amber-300">
+                    <i class="fa-solid fa-file-pdf text-amber-700"></i> Export Report
+                </button>
+
                 <button onclick="openModal()" class="bg-cozy-600 hover:bg-cozy-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md transition flex items-center gap-2 whitespace-nowrap">
                     <i class="fa-solid fa-plus"></i> New Task
                 </button>
@@ -161,7 +172,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-bold text-cozy-800 uppercase tracking-wide mb-1">Task / Story Title *</label>
-                        <input type="text" id="taskTitle" required placeholder="e.g., Design authentication flow" 
+                        <input type="text" id="taskTitle" required placeholder="e.g., Implement login authentication" 
                             class="w-full px-3 py-2 bg-cozy-50 border border-cozy-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cozy-400 text-cozy-900">
                     </div>
                     <div>
@@ -191,7 +202,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-cozy-800 uppercase tracking-wide mb-1">Description (Supports long notes & details)</label>
+                    <label class="block text-xs font-bold text-cozy-800 uppercase tracking-wide mb-1">Description</label>
                     <textarea id="taskDescription" rows="4" placeholder="Provide full context, acceptance criteria or details..." 
                         class="w-full px-3 py-2 bg-cozy-50 border border-cozy-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cozy-400 text-cozy-900"></textarea>
                 </div>
@@ -321,7 +332,6 @@
 
         let currentPriorityFilter = 'all';
 
-        // Set default calendar picker to today on load if empty
         window.addEventListener('DOMContentLoaded', () => {
             const todayStr = new Date().toISOString().split('T')[0];
             document.getElementById('selectedDateFilter').value = todayStr;
@@ -660,6 +670,62 @@
                     container.appendChild(arrow);
                 }
             });
+        }
+
+        function exportPDFReport() {
+            const printWindow = window.open('', '_blank');
+            const today = new Date().toLocaleDateString();
+
+            let tasksHtml = tasks.map(t => `
+                <tr style="border-bottom: 1px solid #ddd; text-align: left;">
+                    <td style="padding: 10px; font-weight: bold;">${escapeHtml(t.title)}</td>
+                    <td style="padding: 10px;">${t.column}</td>
+                    <td style="padding: 10px;">${t.priority}</td>
+                    <td style="padding: 10px;">${t.date || 'N/A'}</td>
+                    <td style="padding: 10px; font-size: 11px;">${escapeHtml(t.description || '-')}</td>
+                    <td style="padding: 10px; font-size: 11px;">${t.subtasks ? t.subtasks.length : 0} items</td>
+                    <td style="padding: 10px; font-size: 11px; color: #b91c1c;">${t.bugs ? t.bugs.length : 0} bugs</td>
+                </tr>
+            `).join('');
+
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Task & Bug Report - Nadia Hannan Sharme</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 30px; color: #333; }
+                        h1 { color: #bc6c25; margin-bottom: 5px; }
+                        .subtitle { font-size: 14px; color: #666; margin-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+                        th { background-color: #f7ede2; color: #462709; padding: 10px; border-bottom: 2px solid #d4a373; text-align: left; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Nadia Hannan Sharme's Task & Bug Status Report</h1>
+                    <div class="subtitle">Generated on: ${today} | Total Tasks: ${tasks.length}</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Task / Story</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Due Date</th>
+                                <th>Description</th>
+                                <th>Sub-tasks</th>
+                                <th>Bugs</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tasksHtml}
+                        </tbody>
+                    </table>
+                    <script>
+                        window.onload = function() { window.print(); }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
 
         function setPriorityFilter(priority) {
